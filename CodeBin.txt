@@ -55,3 +55,18 @@ private void checkDuplicatesButton_Click(object sender, EventArgs e)
         this.toolStripStatusSearch.Text = "Error occurred during duplicate check.";
     }
 }
+/// <summary>
+/// Generates a unique hash key for a DataRow based on its values.
+/// </summary>
+/// <param name="row">The DataRow to hash.</param>
+/// <returns>A string representing the hash key for the row.</returns>
+private string GetRowHashKey(DataRow row)
+{
+    var hashKey = new StringBuilder();
+    foreach (var item in row.ItemArray)
+    {
+        hashKey.Append(item?.GetHashCode() ?? 0); // Use hash codes for fast comparisons
+        hashKey.Append('|'); // Separator for column values
+    }
+    return hashKey.ToString();
+}
