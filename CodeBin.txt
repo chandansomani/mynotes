@@ -12,16 +12,24 @@ private void checkDuplicatesButton_Click(object sender, EventArgs e)
         var seenRows = new HashSet<string>();
         var duplicates = new List<int>(); // Store row indices of duplicates
 
-        foreach (DataRow row in this.MainDataSource.Rows)
+        int totalRows = this.MainDataSource.Rows.Count;
+
+        for (int i = 0; i < totalRows; i++)
         {
-            // Combine all column values into a single string to compare entire row
+            DataRow row = this.MainDataSource.Rows[i];
             string rowValue = string.Join("|", row.ItemArray.Select(item => item.ToString()));
+
+            // Update toolStripStatusSearch with current index
+            this.toolStripStatusSearch.Text = $"Checking row {i + 1} of {totalRows}...";
 
             if (!seenRows.Add(rowValue))
             {
                 // Duplicate found, track its index
-                duplicates.Add(this.MainDataSource.Rows.IndexOf(row));
+                duplicates.Add(i);
             }
+
+            // Process UI updates
+            Application.DoEvents(); // Allows UI to update during the loop
         }
 
         if (duplicates.Count > 0)
@@ -38,9 +46,13 @@ private void checkDuplicatesButton_Click(object sender, EventArgs e)
         {
             MessageBox.Show("No duplicates found.", "Duplicate Check", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+
+        // Reset toolStripStatusSearch
+        this.toolStripStatusSearch.Text = "Duplicate check completed.";
     }
     catch (Exception ex)
     {
         MessageBox.Show($"An error occurred while checking for duplicates: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        this.toolStripStatusSearch.Text = "Error occurred during duplicate check.";
     }
 }
