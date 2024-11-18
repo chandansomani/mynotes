@@ -8,35 +8,35 @@ private void checkDuplicatesButton_Click(object sender, EventArgs e)
             return;
         }
 
-        // Use a HashSet to track unique rows
-        var seenRows = new HashSet<string>();
-        var duplicates = new List<int>(); // Store row indices of duplicates
+        var seenRows = new ConcurrentDictionary<string, bool>(); // Thread-safe collection
+        var duplicates = new ConcurrentBag<int>(); // Thread-safe bag for duplicates
+        var totalRows = this.MainDataSource.Rows.Count;
 
-        int totalRows = this.MainDataSource.Rows.Count;
-
-        for (int i = 0; i < totalRows; i++)
+        Parallel.For(0, totalRows, i =>
         {
-            DataRow row = this.MainDataSource.Rows[i];
-            string rowValue = string.Join("|", row.ItemArray.Select(item => item.ToString()));
+            var row = this.MainDataSource.Rows[i];
+            var hashKey = GetRowHashKey(row);
 
-            // Update toolStripStatusSearch with current index
-            this.toolStripStatusSearch.Text = $"Checking row {i + 1} of {totalRows}...";
-
-            if (!seenRows.Add(rowValue))
+            if (!seenRows.TryAdd(hashKey, true))
             {
-                // Duplicate found, track its index
                 duplicates.Add(i);
             }
 
-            // Process UI updates
-            Application.DoEvents(); // Allows UI to update during the loop
-        }
+            // Optionally, report progress (e.g., via a progress bar)
+            if (i % 1000 == 0)
+            {
+                this.Invoke(new Action(() =>
+                {
+                    this.toolStripStatusSearch.Text = $"Checking row {i + 1} of {totalRows}...";
+                }));
+            }
+        });
 
         if (duplicates.Count > 0)
         {
             MessageBox.Show($"Duplicates found in {duplicates.Count} rows.", "Duplicate Check", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            
-            // Optionally, highlight duplicates in the DataGridView
+
+            // Highlight duplicates in the DataGridView
             foreach (int index in duplicates)
             {
                 this.mainGridView.Rows[index].DefaultCellStyle.BackColor = Color.LightCoral;
@@ -47,7 +47,6 @@ private void checkDuplicatesButton_Click(object sender, EventArgs e)
             MessageBox.Show("No duplicates found.", "Duplicate Check", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // Reset toolStripStatusSearch
         this.toolStripStatusSearch.Text = "Duplicate check completed.";
     }
     catch (Exception ex)
