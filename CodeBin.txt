@@ -1,0 +1,46 @@
+private void checkDuplicatesButton_Click(object sender, EventArgs e)
+{
+    try
+    {
+        if (this.MainDataSource is null || this.MainDataSource.Rows.Count == 0)
+        {
+            MessageBox.Show("No data loaded to check for duplicates.", "Duplicate Check", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        // Use a HashSet to track unique rows
+        var seenRows = new HashSet<string>();
+        var duplicates = new List<int>(); // Store row indices of duplicates
+
+        foreach (DataRow row in this.MainDataSource.Rows)
+        {
+            // Combine all column values into a single string to compare entire row
+            string rowValue = string.Join("|", row.ItemArray.Select(item => item.ToString()));
+
+            if (!seenRows.Add(rowValue))
+            {
+                // Duplicate found, track its index
+                duplicates.Add(this.MainDataSource.Rows.IndexOf(row));
+            }
+        }
+
+        if (duplicates.Count > 0)
+        {
+            MessageBox.Show($"Duplicates found in {duplicates.Count} rows.", "Duplicate Check", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            
+            // Optionally, highlight duplicates in the DataGridView
+            foreach (int index in duplicates)
+            {
+                this.mainGridView.Rows[index].DefaultCellStyle.BackColor = Color.LightCoral;
+            }
+        }
+        else
+        {
+            MessageBox.Show("No duplicates found.", "Duplicate Check", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show($"An error occurred while checking for duplicates: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
+}
