@@ -8,18 +8,20 @@ private async void checkDuplicatesButton_Click(object sender, EventArgs e)
             return;
         }
 
-        // Disable the button to prevent multiple clicks
         checkDuplicatesButton.Enabled = false;
         toolStripStatusSearch.Text = "Checking for duplicates...";
 
-        var result = await Task.Run(() => CheckForDuplicates());
+        var progress = new Progress<int>(row =>
+        {
+            toolStripStatusSearch.Text = $"Processing row {row} of {this.MainDataSource.Rows.Count}...";
+        });
 
-        // Process results
+        var result = await Task.Run(() => CheckForDuplicatesWithProgress(progress));
+
         if (result.DuplicateIndices.Count > 0)
         {
             MessageBox.Show($"Duplicates found in {result.DuplicateIndices.Count} rows.", "Duplicate Check", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-            // Highlight duplicates in the DataGridView
             foreach (int index in result.DuplicateIndices)
             {
                 this.mainGridView.Rows[index].DefaultCellStyle.BackColor = Color.LightCoral;
@@ -39,12 +41,11 @@ private async void checkDuplicatesButton_Click(object sender, EventArgs e)
     }
     finally
     {
-        // Re-enable the button
         checkDuplicatesButton.Enabled = true;
     }
 }
 
-private (List<int> DuplicateIndices, int TotalRows) CheckForDuplicates()
+private (List<int> DuplicateIndices, int TotalRows) CheckForDuplicatesWithProgress(IProgress<int> progress)
 {
     var seenRows = new HashSet<string>();
     var duplicates = new List<int>();
@@ -58,6 +59,9 @@ private (List<int> DuplicateIndices, int TotalRows) CheckForDuplicates()
         {
             duplicates.Add(i);
         }
+
+        // Report progress
+        progress.Report(i + 1);
     }
 
     return (duplicates, this.MainDataSource.Rows.Count);
