@@ -1,67 +1,58 @@
-using System.Data;
+using System;
+using System.IO;
+using System.Threading.Tasks;
 using Parquet;
 
-public class ParquetToDataTable
+public class ParquetReaderExample
 {
-    public static DataTable LoadParquet(string filePath)
+    public static async Task Main(string[] args)
     {
-        DataTable dataTable = new DataTable();
+        string filePath = "/mnt/storage/data.parquet"; // Replace with your actual file path
 
-        using (Stream fileStream = File.OpenRead(filePath))
+        try
         {
-            using (var parquetReader = new ParquetReader(fileStream))
+            using (Stream fs = File.OpenRead(filePath))
             {
-                // Get the schema information from the Parquet file
-                var schema = parquetReader.Schema;
-
-                // Create columns in the DataTable based on the schema
-                foreach (var column in schema.RootGroup.Fields)
+                using (ParquetReader reader = await ParquetReader.CreateAsync(fs))
                 {
-                    var dataTypeName = GetDataTypeFromParquetType(column.DataType);
-                    dataTable.Columns.Add(column.Name, dataTypeName);
-                }
+                    // Choose a specific column name (adjust based on your schema)
+                    string columnName = "my_column_name";
 
-                // Read the data rows from the Parquet file
-                var dataRowCollection = parquetReader.ReadRowGroup(0); // Read the first row group
-                foreach (var dataRow in dataRowCollection)
-                {
-                    DataRow row = dataTable.NewRow();
-
-                    // Add each data cell value to the corresponding column in the row
-                    for (int i = 0; i < dataRow.Count; i++)
+                    if (reader.Schema.TryFindField(columnName, out DataField dataField))
                     {
-                        row[i] = dataRow[i]; // Assuming data types directly match between parquet and DataTable
-                    }
+                        for (int i = 0; i < reader.RowGroupCount; i++)
+                        {
+                            using (ParquetRowGroupReader rowGroupReader = reader.OpenRowGroupReader(i))
+                            {
+                                DataColumn columnData = await rowGroupReader.ReadColumnAsync(dataField);
 
-                    dataTable.Rows.Add(row);
+                                // Assuming your column contains strings (modify as needed)
+                                if (columnData.DataType == Thrift.Type.UTF8)
+                                {
+                                    string[] stringValues = columnData.GetStringArray();
+                                    Console.WriteLine($"Row Group {i}:");
+                                    for (int j = 0; j < stringValues.Length; j++)
+                                    {
+                                        Console.WriteLine($"- {stringValues[j]}");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"Column '{columnName}' has unsupported data type: {columnData.DataType}");
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Column '{columnName}' not found in the Parquet schema.");
+                    }
                 }
             }
         }
-
-        return dataTable;
-    }
-
-    private static Type GetDataTypeFromParquetType(Parquet.Thrift.Type type)
-    {
-        switch (type)
+        catch (Exception ex)
         {
-            case Parquet.Thrift.Type.INT32:
-                return typeof(int);
-            case Parquet.Thrift.Type.INT64:
-                return typeof(long);
-            case Parquet.Thrift.Type.DOUBLE:
-                return typeof(double);
-            case Parquet.Thrift.Type.FLOAT:
-                return typeof(float);
-            case Parquet.Thrift.Type.BOOL:
-                return typeof(bool);
-            case Parquet.Thrift.Type.BYTE_ARRAY:
-                return typeof(byte[]);
-            case Parquet.Thrift.Type.UTF8:
-                return typeof(string);
-            default:
-                // Handle unsupported data types appropriately (e.g., throw an exception)
-                throw new NotImplementedException($"Data type '{type}' is not currently supported");
+            Console.WriteLine($"Error: {ex.Message}");
         }
     }
 }
