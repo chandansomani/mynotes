@@ -1,58 +1,85 @@
 using System;
+using System.Data;
 using System.IO;
 using System.Threading.Tasks;
 using Parquet;
+using Parquet.Data;
 
-public class ParquetReaderExample
+class Program
 {
-    public static async Task Main(string[] args)
+    static async Task Main(string[] args)
     {
-        string filePath = "/mnt/storage/data.parquet"; // Replace with your actual file path
-
         try
         {
-            using (Stream fs = File.OpenRead(filePath))
+            // Path to the Parquet file
+            string filePath = "your-parquet-file.parquet";
+
+            // Open the file stream
+            using (Stream fileStream = File.OpenRead(filePath))
             {
-                using (ParquetReader reader = await ParquetReader.CreateAsync(fs))
+                // Use CreateAsync to asynchronously create a ParquetReader
+                using (var parquetReader = await ParquetReader.CreateAsync(fileStream))
                 {
-                    // Choose a specific column name (adjust based on your schema)
-                    string columnName = "my_column_name";
+                    // Initialize a DataTable to store the data
+                    DataTable dataTable = new DataTable();
 
-                    if (reader.Schema.TryFindField(columnName, out DataField dataField))
+                    // Read the schema (column definitions)
+                    Schema schema = parquetReader.Schema;
+
+                    // Add columns to the DataTable
+                    foreach (DataField dataField in schema.GetDataFields())
                     {
-                        for (int i = 0; i < reader.RowGroupCount; i++)
-                        {
-                            using (ParquetRowGroupReader rowGroupReader = reader.OpenRowGroupReader(i))
-                            {
-                                DataColumn columnData = await rowGroupReader.ReadColumnAsync(dataField);
+                        dataTable.Columns.Add(dataField.Name, typeof(string)); // Simplified to string; adjust based on your data type
+                    }
 
-                                // Assuming your column contains strings (modify as needed)
-                                if (columnData.DataType == Thrift.Type.UTF8)
+                    // Loop through row groups
+                    for (int i = 0; i < parquetReader.RowGroupCount; i++)
+                    {
+                        using (var rowGroupReader = await parquetReader.OpenRowGroupReaderAsync(i))
+                        {
+                            foreach (DataField dataField in schema.GetDataFields())
+                            {
+                                // Read the column data asynchronously
+                                Parquet.Data.DataColumn parquetColumnData = await rowGroupReader.ReadColumnAsync(dataField);
+
+                                // Extract the column values
+                                object[] columnValues = parquetColumnData.Data;
+
+                                // Add rows to the DataTable (one per value)
+                                for (int rowIndex = 0; rowIndex < columnValues.Length; rowIndex++)
                                 {
-                                    string[] stringValues = columnData.GetStringArray();
-                                    Console.WriteLine($"Row Group {i}:");
-                                    for (int j = 0; j < stringValues.Length; j++)
+                                    if (dataTable.Rows.Count <= rowIndex)
                                     {
-                                        Console.WriteLine($"- {stringValues[j]}");
+                                        dataTable.Rows.Add();
                                     }
-                                }
-                                else
-                                {
-                                    Console.WriteLine($"Column '{columnName}' has unsupported data type: {columnData.DataType}");
+                                    dataTable.Rows[rowIndex][dataField.Name] = columnValues[rowIndex];
                                 }
                             }
                         }
                     }
-                    else
+
+                    // Display the DataTable
+                    Console.WriteLine("Data from Parquet file:");
+                    foreach (DataColumn column in dataTable.Columns)
                     {
-                        Console.WriteLine($"Column '{columnName}' not found in the Parquet schema.");
+                        Console.Write($"{column.ColumnName}\t");
+                    }
+                    Console.WriteLine();
+
+                    foreach (DataRow row in dataTable.Rows)
+                    {
+                        foreach (var item in row.ItemArray)
+                        {
+                            Console.Write($"{item}\t");
+                        }
+                        Console.WriteLine();
                     }
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"An error occurred: {ex.Message}");
         }
     }
 }
