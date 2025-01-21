@@ -20,7 +20,7 @@ namespace MyAssistant
             try
             {
                 textBox1.Text = Clipboard.GetText();
-                ProcessAndDisplayJsonFromTextBox();
+                ProcessAndDisplayJsonFromClipboard();
                 Clipboard.SetText(textBox2.Text);
                 toolStripStatusLabel1.Text = "Content Copied to Clipboard.";
             }
@@ -37,7 +37,7 @@ namespace MyAssistant
                 try
                 {
                     textBox1.Text = Clipboard.GetText();
-                    ProcessAndDisplayJsonFromTextBox();
+                    ProcessAndDisplayJsonFromClipboard();
                     Clipboard.SetText(textBox2.Text);
                     toolStripStatusLabel1.Text = "Content Copied to Clipboard.";
                 }
@@ -53,7 +53,8 @@ namespace MyAssistant
             try
             {
                 string inputJson = textBox1.Text;
-                (string formattedJson, string result) = ProcessJson(inputJson);
+                string formattedJson = FormatJson(inputJson);
+                string result = AnalyzeJson(inputJson);
                 textBox1.Text = formattedJson;
                 textBox2.Text = result;
             }
@@ -63,11 +64,20 @@ namespace MyAssistant
             }
         }
 
-        private static (string formattedJson, string result) ProcessJson(string jsonText)
+        private void ProcessAndDisplayJsonFromClipboard()
         {
-            string formattedJson = FormatJson(jsonText);
-            string result = AnalyzeJson(jsonText);
-            return (formattedJson, result);
+            try
+            {
+                string inputJson = Clipboard.GetText();
+                string formattedJson = FormatJson(inputJson);
+                string result = AnalyzeJson(inputJson);
+                textBox1.Text = formattedJson;
+                textBox2.Text = result;
+            }
+            catch (Exception)
+            {
+                toolStripStatusLabel1.Text = "Invalid Json";
+            }
         }
 
         private static string FormatJson(string jsonText)
