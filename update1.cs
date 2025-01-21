@@ -12,16 +12,14 @@ namespace MyAssistant
 
         private void processJSONAnalysisToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            ProcessAndDisplayJsonFromTextBox();
+            ProcessJsonFromClipboardAndDisplay();
         }
 
         private void fastProcessToolStripMenuItem_Click(object sender, EventArgs e)
         {
             try
             {
-                textBox1.Text = Clipboard.GetText();
-                ProcessAndDisplayJsonFromClipboard();
-                Clipboard.SetText(textBox2.Text);
+                ProcessJsonFromClipboardAndDisplay();
                 toolStripStatusLabel1.Text = "Content Copied to Clipboard.";
             }
             catch (Exception)
@@ -32,13 +30,13 @@ namespace MyAssistant
 
         private void textBox1_KeyDown(object sender, KeyEventArgs e)
         {
-            if ((e.Control && e.KeyCode == Keys.V))
+            if (e.Control && e.KeyCode == Keys.V)
             {
+                e.SuppressKeyPress = true; // Prevent default paste operation
+
                 try
                 {
-                    textBox1.Text = Clipboard.GetText();
-                    ProcessAndDisplayJsonFromClipboard();
-                    Clipboard.SetText(textBox2.Text);
+                    ProcessJsonFromClipboardAndDisplay();
                     toolStripStatusLabel1.Text = "Content Copied to Clipboard.";
                 }
                 catch (Exception)
@@ -48,36 +46,47 @@ namespace MyAssistant
             }
         }
 
-        private void ProcessAndDisplayJsonFromTextBox()
-        {
-            try
-            {
-                string inputJson = textBox1.Text;
-                string formattedJson = FormatJson(inputJson);
-                string result = AnalyzeJson(inputJson);
-                textBox1.Text = formattedJson;
-                textBox2.Text = result;
-            }
-            catch (Exception)
-            {
-                toolStripStatusLabel1.Text = "Invalid Json";
-            }
-        }
-
-        private void ProcessAndDisplayJsonFromClipboard()
+        private void ProcessJsonFromClipboardAndDisplay()
         {
             try
             {
                 string inputJson = Clipboard.GetText();
-                string formattedJson = FormatJson(inputJson);
-                string result = AnalyzeJson(inputJson);
+                (string formattedJson, string result) = JsonProcessor.ProcessJson(inputJson);
                 textBox1.Text = formattedJson;
                 textBox2.Text = result;
+                Clipboard.SetText(result);
             }
             catch (Exception)
             {
-                toolStripStatusLabel1.Text = "Invalid Json";
+                throw new ArgumentException("Invalid JSON format");
             }
+        }
+
+        private void HandleJsonError()
+        {
+            toolStripStatusLabel1.Text = "JSON Error";
+            textBox1.Clear();
+            textBox2.Clear();
+        }
+
+        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("Made by Chandan Somani.");
+        }
+    }
+
+    public static class JsonProcessor
+    {
+        public static (string formattedJson, string result) ProcessJson(string jsonText)
+        {
+            string formattedJson = FormatJson(jsonText);
+            string result = AnalyzeJson(jsonText);
+            return (formattedJson, result);
         }
 
         private static string FormatJson(string jsonText)
@@ -156,23 +165,6 @@ namespace MyAssistant
                     ReplaceNullValuesWithDate(item, newDate);
                 }
             }
-        }
-
-        private void HandleJsonError()
-        {
-            toolStripStatusLabel1.Text = "JSON Error";
-            textBox1.Clear();
-            textBox2.Clear();
-        }
-
-        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            Application.Exit();
-        }
-
-        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            MessageBox.Show("Made by Chandan Somani.");
         }
     }
 }
